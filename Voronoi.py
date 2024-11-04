@@ -9,6 +9,58 @@ edges = []  # 初始化一個列表來儲存邊
 def midpoint(point1, point2):
     return np.mean([point1, point2], axis=0)
 
+def normal_vector(point1, point2):
+    x1, y1 = point1
+    x2, y2 = point2
+    dx = x2 - x1
+    dy = y2 - y1
+    # 返回一个法向量
+    return np.array([-dy, dx])
+
+def circumcenter(A, B, C):
+    # 解三角形 ABC 的外心坐标
+    x1, y1 = A
+    x2, y2 = B
+    x3, y3 = C
+    
+    # 边向量
+    D = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
+    
+    # 分母为零代表三点共线，返回 None
+    if D == 0:
+        return None
+    
+    # 计算外心的 x 和 y 坐标
+    Ux = ((x1**2 + y1**2) * (y2 - y3) + (x2**2 + y2**2) * (y3 - y1) + (x3**2 + y3**2) * (y1 - y2)) / D
+    Uy = ((x1**2 + y1**2) * (x3 - x2) + (x2**2 + y2**2) * (x1 - x3) + (x3**2 + y3**2) * (x2 - x1)) / D
+    
+    return np.array([Ux, Uy])
+
+def sort_points(points):
+    # 计算所有点的中心点
+    center = np.mean(points, axis=0)
+    
+    # 计算每个点相对于中心点的角度
+    def angle_from_center(point):
+        x, y = point - center
+        return np.arctan2(y, x)
+    
+    # 按照角度从小到大排序（逆时针）
+    sorted_points = sorted(points, key=angle_from_center)
+    
+    return sorted_points
+
+def draw_point(canvas, point, color="blue", size=2):
+    x, y = point
+    canvas.create_oval(x - size, y - size, x + size, y + size, fill=color)
+    position_label.config(text=f"點已新增在 ({x}, {y})")
+
+def draw_line(canvas, point1, point2, color="red"):
+    x1, y1 = point1
+    x2, y2 = point2
+    canvas.create_line(x1, y1, x2, y2, fill=color)
+    position_label.config(text=f"已新增一條線")
+
 def record_point(event):
     """記錄滑鼠點擊的位置"""
     global points
@@ -19,9 +71,8 @@ def record_point(event):
 def add_point():
     """在畫布上新增一個點"""
     if points.shape[0] > 0:  # 確保有點存在
-        x, y = points[-1]  # 獲取最新的點
-        canvas.create_oval(x-2, y-2, x+2, y+2, fill="blue")  # 畫出一個小點
-        position_label.config(text=f"點已新增在 ({x}, {y})")
+        draw_point(canvas, points[-1])  # 畫出一個小點
+        position_label.config(text=f"點已新增在 ({points[-1][0]}, {points[-1][1]})")
 
 def clear_canvas():
     """清空繪布"""
@@ -31,33 +82,46 @@ def clear_canvas():
     edges.clear()  # 清空邊的列表
 
 def draw_voronoi():
+    global points
+    
     if  len(points) == 1:
-        canvas.create_oval(50.1-2, 50.1-2, 50.1+2, 50.1+2, fill="blue")  # 畫出一個小點
-        return
-    elif len(points) == 2:
-        x0, y0 = points[-2]  
-        x1, y1 = points[-1]  
-        canvas.create_line(x0, y0, x1, y1, fill="red")  # 畫出一條連線
-
-        mid = midpoint(points[-2], points[-1])
-        print(mid[0],mid[1])
-        canvas.create_oval(50.1-2, 50.1-2, 50.1+2, 50.1+2, fill="blue")  # 畫出一個小點
-
+        draw_point(canvas, (50,50))  # 畫出一個小點
+        
+    elif len(points) == 2:      
+        mid = midpoint(points[0], points[1])
+        n_vec = normal_vector(points[0], points[1])
+        draw_line(canvas, mid + 100 * n_vec, mid - 100 * n_vec)
+        
     elif len(points) == 3:
-        x0, y0 = points[-3]  
-        x1, y1 = points[-2]  
-        x2, y2 = points[-1]
-        canvas.create_line(x0, y0, x1, y1, fill="red")  # 畫出一條連線
-        canvas.create_line(x0, y0, x2, y2, fill="red")  # 畫出一條連線
-        canvas.create_line(x1, y1, x2, y2, fill="red")  # 畫出一條連線
+        sorted_points = sort_points(points)
+        center = circumcenter(sorted_points[0], sorted_points[1], sorted_points[2])
+        
+        if center is not None:  # 确保 center 是有效的
+            for i in range(3):  # 遍历 0, 1, 2 的索引
+                # 计算当前点和下一个点的索引
+                next_index = (i + 1) % 3  # 确保循环回到第一个点
+                n_vec = normal_vector(sorted_points[i], sorted_points[next_index])
+                draw_line(canvas, center, center - 100 * n_vec)
+        else:
+            print("三点共线，无法计算外心")
     else:
         return
     
+def read_file():
+    canvas.delete("all")
+    global points, edges
+    points = np.empty((0, 2), int)  # 清空 NumPy 陣列
+    edges.clear()  # 清空邊的列表
 
+def write_file():
+    canvas.delete("all")
+    global points, edges
+    points = np.empty((0, 2), int)  # 清空 NumPy 陣列
+    edges.clear()  # 清空邊的列表
 
 # 創建主視窗
 root = tk.Tk()
-root.title("滑鼠位置顯示")
+root.title("Voronoi Diagram")
 root.geometry("800x600")  # 設定視窗大小為 800x600
 
 # 創建繪布
@@ -86,6 +150,14 @@ clear_button.grid(row=2, column=0, pady=5)
 # 畫圖按鈕
 draw_button = tk.Button(control_frame, text="畫圖", command=draw_voronoi)
 draw_button.grid(row=3, column=0, pady=5)
+
+# 輸入檔案按鈕
+readfile_button = tk.Button(control_frame, text="輸入檔案", command=read_file)
+readfile_button.grid(row=4, column=0, pady=5)
+
+# 輸出檔案按鈕
+writefile_button = tk.Button(control_frame, text="輸出檔案", command=write_file)
+writefile_button.grid(row=5, column=0, pady=5)
 
 # 啟動主循環
 root.mainloop()
