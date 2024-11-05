@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import filedialog, messagebox
 from scipy.spatial import Voronoi
 import numpy as np
 
@@ -108,16 +109,35 @@ def draw_voronoi():
         return
     
 def read_file():
-    canvas.delete("all")
-    global points, edges
-    points = np.empty((0, 2), int)  # 清空 NumPy 陣列
-    edges.clear()  # 清空邊的列表
+    # 彈出檔案選擇對話框
+    file_path = filedialog.askopenfilename(title="選擇檔案", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+    
 
-def write_file():
-    canvas.delete("all")
-    global points, edges
-    points = np.empty((0, 2), int)  # 清空 NumPy 陣列
-    edges.clear()  # 清空邊的列表
+    if file_path:  # 確保用戶選擇了檔案
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                # 逐行讀取檔案內容
+                for line in file:
+                    print(line.strip())  # 使用 strip() 去除每行的前後空白字元
+
+        except FileNotFoundError:
+            messagebox.showerror("錯誤", f"檔案 {file_path} 找不到。")
+        except IOError:
+            messagebox.showerror("錯誤", "讀取檔案時發生錯誤。")
+
+def write_file(points,edges):
+    # 彈出檔案保存對話框
+    file_path = filedialog.asksaveasfilename(title="儲存檔案", defaultextension=".txt", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+    
+    if file_path:  # 確保用戶選擇了檔案
+        try:
+            with open(file_path, 'w', encoding='utf-8') as file:
+                file.write(str(points))  # 寫入內容
+
+            messagebox.showinfo("成功", "檔案已成功儲存。")
+
+        except IOError:
+            messagebox.showerror("錯誤", "儲存檔案時發生錯誤。")
 
 # 創建主視窗
 root = tk.Tk()
@@ -156,7 +176,7 @@ readfile_button = tk.Button(control_frame, text="輸入檔案", command=read_fil
 readfile_button.grid(row=4, column=0, pady=5)
 
 # 輸出檔案按鈕
-writefile_button = tk.Button(control_frame, text="輸出檔案", command=write_file)
+writefile_button = tk.Button(control_frame, text="輸出檔案", command=lambda: write_file(points.tolist(), edges))
 writefile_button.grid(row=5, column=0, pady=5)
 
 # 啟動主循環
