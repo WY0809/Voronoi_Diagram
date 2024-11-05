@@ -6,6 +6,8 @@ import numpy as np
 # 記錄點的位置變數，使用 NumPy 陣列
 points = np.empty((0, 2), int)  # 初始化一個空的 NumPy 陣列，形狀為 (0, 2)
 edges = []  # 初始化一個列表來儲存邊
+file_content = ""  # 全局變數用來存儲檔案內容
+
 
 def midpoint(point1, point2):
     return np.mean([point1, point2], axis=0)
@@ -84,11 +86,7 @@ def clear_canvas():
 
 def draw_voronoi():
     global points
-    
-    if  len(points) == 1:
-        draw_point(canvas, (50,50))  # 畫出一個小點
-        
-    elif len(points) == 2:      
+    if len(points) == 2:      
         mid = midpoint(points[0], points[1])
         n_vec = normal_vector(points[0], points[1])
         draw_line(canvas, mid + 100 * n_vec, mid - 100 * n_vec)
@@ -100,15 +98,24 @@ def draw_voronoi():
         if center is not None:  # 确保 center 是有效的
             for i in range(3):  # 遍历 0, 1, 2 的索引
                 # 计算当前点和下一个点的索引
-                next_index = (i + 1) % 3  # 确保循环回到第一个点
-                n_vec = normal_vector(sorted_points[i], sorted_points[next_index])
+                next_i = (i + 1) % 3  # 确保循环回到第一个点
+                n_vec = normal_vector(sorted_points[i], sorted_points[next_i])
                 draw_line(canvas, center, center - 100 * n_vec)
         else:
-            print("三点共线，无法计算外心")
+            for i in range(2):  # 遍历 0, 1 的索引
+                next_i = (i + 1) % 3
+                mid = midpoint(points[i], points[next_i])
+                n_vec = normal_vector(points[i], points[next_i])
+                draw_line(canvas, mid + 100 * n_vec, mid - 100 * n_vec)
+        
+    elif len(points) >= 4:
+        print()
     else:
-        return
+        position_label.config(text=f"還沒做")
+        
     
 def read_file():
+    global file_content  # 宣告使用全局變數
     # 彈出檔案選擇對話框
     file_path = filedialog.askopenfilename(title="選擇檔案", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
     
@@ -116,14 +123,40 @@ def read_file():
     if file_path:  # 確保用戶選擇了檔案
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
-                # 逐行讀取檔案內容
-                for line in file:
-                    print(line.strip())  # 使用 strip() 去除每行的前後空白字元
+                file_content = file.read()  # 讀取整個檔案並賦值給 file_content
 
         except FileNotFoundError:
             messagebox.showerror("錯誤", f"檔案 {file_path} 找不到。")
         except IOError:
             messagebox.showerror("錯誤", "讀取檔案時發生錯誤。")
+
+def draw_input():
+    global points, file_content  # 宣告使用全域變數
+
+    # 將檔案內容按行分割
+    lines = file_content.splitlines()
+
+    if lines:  # 確保有內容
+        # 讀取第一行數字
+        num_points = int(lines[0])
+        
+        # 清空全域變數 points
+        points = np.empty((0, 2), int)
+
+        # 逐行讀取並新增點
+        for i in range(1, num_points + 1):  # 根據 num_points 控制迴圈
+            if i < len(lines):
+                # 將每行的數字分割並轉換為整數，然後儲存到 points 陣列
+                point = list(map(int, lines[i].split()))
+                draw_point(canvas, point)
+                points = np.vstack((points, point))  # 將新的點添加到陣列中
+
+        points = np.unique(points, axis=0)
+
+        # 保留未使用的內容
+        file_content = "\n".join(lines[num_points + 1:])
+
+        print(points)
 
 def write_file(points,edges):
     # 彈出檔案保存對話框
@@ -178,6 +211,10 @@ readfile_button.grid(row=4, column=0, pady=5)
 # 輸出檔案按鈕
 writefile_button = tk.Button(control_frame, text="輸出檔案", command=lambda: write_file(points.tolist(), edges))
 writefile_button.grid(row=5, column=0, pady=5)
+
+# 畫輸入點按鈕
+writefile_button = tk.Button(control_frame, text="畫輸入點", command=draw_input)
+writefile_button.grid(row=6, column=0, pady=5)
 
 # 啟動主循環
 root.mainloop()

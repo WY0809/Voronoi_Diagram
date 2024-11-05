@@ -2,23 +2,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import Voronoi, voronoi_plot_2d
 
-# 隨機生成一些點
-points = np.random.randint(0, 600, size=(2, 2))
+def plot_voronoi(points):
+    # 生成 Voronoi 圖
+    vor = Voronoi(points)
 
-# 計算沃洛諾伊圖
-vor = Voronoi(points)
+    # 繪製 Voronoi 圖
+    fig, ax = plt.subplots()
+    voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='orange', line_width=2)
 
-# 繪製沃洛諾伊圖
-plt.figure(figsize=(8, 8))
-voronoi_plot_2d(vor, show_vertices=False, line_colors='blue', line_width=2, point_size=10)
+    # 繪製點
+    ax.plot(points[:, 0], points[:, 1], 'bo')  # 使用藍色圓點表示
 
-# 繪製生成的點
-plt.plot(points[:, 0], points[:, 1], 'ro')  # 'ro'表示紅色圓點
+    # 設定標題和顯示
+    ax.set_title('Voronoi Diagram')
+    plt.xlim(-1, 10)
+    plt.ylim(-1, 10)
+    plt.grid()
+    plt.show()
 
-# 設定坐標範圍
-plt.xlim(0, 600)
-plt.ylim(0, 600)
-plt.title("Voronoi Diagram")
-plt.grid(True)
-plt.show()
+# 測試用例：2 個點
+points_2 = np.array([[2, 3], [8, 5]])
+plot_voronoi(points_2)
 
+# 測試用例：3 個點
+points_3 = np.array([[1, 1], [5, 5], [9, 2]])
+plot_voronoi(points_3)
