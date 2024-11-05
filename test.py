@@ -1,45 +1,43 @@
-import tkinter as tk
-from scipy.spatial import Voronoi
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy.spatial import Voronoi, voronoi_plot_2d
 
-
-def draw_point(canvas, point, color="blue", size=2):
-    x, y = point
-    canvas.create_oval(x - size, y - size, x + size, y + size, fill=color)
+def divide_and_conquer_voronoi(points):
+    # 基本情況
+    if len(points) < 4:
+        return Voronoi(points)
     
-def sort_points_ccw(points):
-    # 计算所有点的中心点
-    center = np.mean(points, axis=0)
+    # 根據 x 座標對點進行排序
+    points = points[np.argsort(points[:, 0])]
+    mid = len(points) // 2
+    left_points = points[:mid]
+    right_points = points[mid:]
+
+    # 遞歸計算左右兩部分的沃洛諾伊圖
+    left_vor = divide_and_conquer_voronoi(left_points)
+    right_vor = divide_and_conquer_voronoi(right_points)
+
+    # 合併左右兩部分的沃洛諾伊圖
+    merged_vor = merge_voronoi(left_vor, right_vor)
     
-    # 计算每个点相对于中心点的角度
-    def angle_from_center(point):
-        x, y = point - center
-        return np.arctan2(y, x)
-    
-    # 按照角度从小到大排序（逆时针）
-    sorted_points = sorted(points, key=angle_from_center)
-    
-    return sorted_points
+    return merged_vor
 
+def merge_voronoi(left_vor, right_vor):
+    # TODO: 實現合併邊界的邏輯
+    # 這部分的實作需要確定左右沃洛諾伊圖之間的關係
+    # 通常這會涉及幾何運算，如找到公共邊界等
+    # 這裡僅示範概念，具體邏輯需要進一步實作
+    pass
 
-# 創建主視窗
-root = tk.Tk()
-root.title("滑鼠位置顯示")
-root.geometry("800x600")  # 設定視窗大小為 800x600
+def plot_voronoi(vor):
+    fig, ax = plt.subplots()
+    voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='blue', line_width=2)
+    plt.xlim(0, 600)
+    plt.ylim(0, 600)
+    plt.title("Voronoi Diagram via Divide and Conquer")
+    plt.show()
 
-# 創建繪布
-canvas = tk.Canvas(root, width=600, height=600, bg="white")
-canvas.pack(side=tk.LEFT)
-
-# 示例用法
-points = [(100, 200), (400, 10), (300, 300), (10, 100)]
-sorted_points = sort_points_ccw(points)
-print("逆时针排序的点:", sorted_points)
-
-draw_point(canvas, points[0])
-draw_point(canvas, points[1])
-draw_point(canvas, points[2])
-draw_point(canvas, points[3])
-
-# 啟動主循環
-root.mainloop()
+# 測試函數
+points = np.random.randint(0, 600, size=(3, 2))
+vor = divide_and_conquer_voronoi(points)
+plot_voronoi(vor)
