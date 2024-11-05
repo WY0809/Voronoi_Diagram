@@ -8,7 +8,6 @@ points = np.empty((0, 2), int)  # 初始化一個空的 NumPy 陣列，形狀為
 edges = []  # 初始化一個列表來儲存邊
 file_content = ""  # 全局變數用來存儲檔案內容
 
-
 def midpoint(point1, point2):
     return np.mean([point1, point2], axis=0)
 
@@ -85,11 +84,12 @@ def clear_canvas():
     edges.clear()  # 清空邊的列表
 
 def draw_voronoi():
-    global points
+    global edges
     if len(points) == 2:      
         mid = midpoint(points[0], points[1])
         n_vec = normal_vector(points[0], points[1])
         draw_line(canvas, mid + 100 * n_vec, mid - 100 * n_vec)
+        edges.append((mid + 100 * n_vec, mid - 100 * n_vec))
         
     elif len(points) == 3:
         sorted_points = sort_points(points)
@@ -101,18 +101,20 @@ def draw_voronoi():
                 next_i = (i + 1) % 3  # 确保循环回到第一个点
                 n_vec = normal_vector(sorted_points[i], sorted_points[next_i])
                 draw_line(canvas, center, center - 100 * n_vec)
+                edges.append((center, center - 100 * n_vec))
         else:
             for i in range(2):  # 遍历 0, 1 的索引
                 next_i = (i + 1) % 3
                 mid = midpoint(points[i], points[next_i])
                 n_vec = normal_vector(points[i], points[next_i])
                 draw_line(canvas, mid + 100 * n_vec, mid - 100 * n_vec)
+                edges.append((mid + 100 * n_vec, mid - 100 * n_vec))
+
         
     elif len(points) >= 4:
         print()
     else:
         position_label.config(text=f"還沒做")
-        
     
 def read_file():
     global file_content  # 宣告使用全局變數
@@ -165,12 +167,63 @@ def write_file(points,edges):
     if file_path:  # 確保用戶選擇了檔案
         try:
             with open(file_path, 'w', encoding='utf-8') as file:
-                file.write(str(points))  # 寫入內容
-
+                # 寫入 points
+                for point in points:
+                    # 格式化為 P x y
+                    file.write(f"P {int(point[0])} {int(point[1])}\n")
+                
+                # 寫入 edges
+                for i, edge in enumerate(edges):
+                    point1, point2 = edge
+                    
+                    # 轉換為 int 並格式化為 E edge_index x1 y1 x2 y2
+                    if point2[0] > point1[0] or (point2[0] == point1[0] and point2[1] > point1[1]):
+                        file.write(f"E {int(point1[0])} {int(point1[1])} {int(point2[0])} {int(point2[1])}\n")
+                    else:
+                        file.write(f"E {int(point2[0])} {int(point2[1])} {int(point1[0])} {int(point1[1])}\n")
             messagebox.showinfo("成功", "檔案已成功儲存。")
 
         except IOError:
             messagebox.showerror("錯誤", "儲存檔案時發生錯誤。")
+
+def draw_output():
+    # 彈出檔案選擇對話框
+    file_path = filedialog.askopenfilename(title="選擇檔案", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+    
+
+    if file_path:  # 確保用戶選擇了檔案
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                canvas.delete("all")
+                global points, edges
+                points = np.empty((0, 2), int)  # 清空 NumPy 陣列
+                edges.clear()  # 清空邊的列表
+
+                # 讀取檔案中的每一行
+                for line in file:
+                    parts = line.strip().split()  # 去掉空白並分割行
+                    if not parts:  # 跳過空行
+                        continue
+                    
+                    if parts[0] == 'P':  # 如果是點
+                        # 將點的座標轉換為整數並加入到 points 陣列
+                        x, y = int(parts[1]), int(parts[2])
+                        points = np.append(points, [[x, y]], axis=0)
+                        draw_point(canvas, (x, y))  # 繪製點
+                        
+                    elif parts[0] == 'E':  # 如果是邊
+                        # 將邊的資料轉換為整數並加入到 edges 列表
+                        edge_data = tuple(map(int, parts[1:]))  # 將邊的數據轉換為整數
+                        edges.append(edge_data)
+                        draw_line(canvas, (edge_data[2], edge_data[3]), (edge_data[0], edge_data[1]))  # 繪製邊
+
+
+
+        except FileNotFoundError:
+            messagebox.showerror("錯誤", f"檔案 {file_path} 找不到。")
+        except IOError:
+            messagebox.showerror("錯誤", "讀取檔案時發生錯誤。")
+            
 
 # 創建主視窗
 root = tk.Tk()
@@ -209,12 +262,16 @@ readfile_button = tk.Button(control_frame, text="輸入檔案", command=read_fil
 readfile_button.grid(row=4, column=0, pady=5)
 
 # 輸出檔案按鈕
-writefile_button = tk.Button(control_frame, text="輸出檔案", command=lambda: write_file(points.tolist(), edges))
+writefile_button = tk.Button(control_frame, text="輸出檔案", command=lambda: write_file(points, edges))
 writefile_button.grid(row=5, column=0, pady=5)
 
 # 畫輸入點按鈕
-writefile_button = tk.Button(control_frame, text="畫輸入點", command=draw_input)
-writefile_button.grid(row=6, column=0, pady=5)
+drawinput_button = tk.Button(control_frame, text="畫輸入點", command=draw_input)
+drawinput_button.grid(row=6, column=0, pady=5)
+
+# 讀取輸出按鈕
+drawoutput_button = tk.Button(control_frame, text="讀取輸出", command=draw_output)
+drawoutput_button.grid(row=7, column=0, pady=5)
 
 # 啟動主循環
 root.mainloop()
