@@ -4,9 +4,9 @@ from scipy.spatial import Voronoi
 import numpy as np
 
 # 記錄點的位置變數，使用 NumPy 陣列
-points = np.empty((0, 2), int)  # 初始化一個空的 NumPy 陣列，形狀為 (0, 2)
-edges = []  # 初始化一個列表來儲存邊
-file_content = ""  # 全局變數用來存儲檔案內容
+points = np.empty((0, 2), int)
+edges = []
+file_content = ""
 
 def midpoint(point1, point2):
     return np.mean([point1, point2], axis=0)
@@ -55,27 +55,24 @@ def sort_points(points):
 def draw_point(canvas, point, color="blue", size=2):
     x, y = point
     canvas.create_oval(x - size, y - size, x + size, y + size, fill=color)
-    position_label.config(text=f"點已新增在 ({x}, {y})")
 
 def draw_line(canvas, point1, point2, color="red"):
     x1, y1 = point1
     x2, y2 = point2
     canvas.create_line(x1, y1, x2, y2, fill=color)
-    position_label.config(text=f"已新增一條線")
 
 def record_point(event):
     """記錄滑鼠點擊的位置"""
     global points
     point_position = np.array([event.x, event.y])  # 創建一個 NumPy 陣列來儲存點位置
     points = np.vstack((points, point_position))  # 將新的點添加到陣列中
-    position_label.config(text=f"記錄點位置: {point_position}")
+    draw_point(canvas, point_position)
 
 def add_point():
     """在畫布上新增一個點"""
     if points.shape[0] > 0:  # 確保有點存在
         draw_point(canvas, points[-1])  # 畫出一個小點
-        position_label.config(text=f"點已新增在 ({points[-1][0]}, {points[-1][1]})")
-
+        
 def clear_canvas():
     """清空繪布"""
     canvas.delete("all")
@@ -114,7 +111,7 @@ def draw_voronoi():
     elif len(points) >= 4:
         print()
     else:
-        position_label.config(text=f"還沒做")
+        return
     
 def read_file():
     global file_content  # 宣告使用全局變數
@@ -135,30 +132,41 @@ def read_file():
 def draw_input():
     global points, file_content  # 宣告使用全域變數
 
-    # 將檔案內容按行分割
-    lines = file_content.splitlines()
+    # 將檔案內容按行分割並過濾掉以 # 開頭的行以及空行
+    lines = [line for line in file_content.splitlines() if line and not line.startswith("#")]
 
     if lines:  # 確保有內容
-        # 讀取第一行數字
-        num_points = int(lines[0])
-        
+        try:
+            # 嘗試將第一行轉換為整數
+            num_points = int(lines[0])
+
+            # 如果 num_points 為 0，則結束並清空 file_content
+            if num_points == 0:
+                file_content = ""
+                return
+        except ValueError:
+            print("Error: First line of points data is not a valid integer.")
+            return
+
         # 清空全域變數 points
         points = np.empty((0, 2), int)
 
         # 逐行讀取並新增點
         for i in range(1, num_points + 1):  # 根據 num_points 控制迴圈
             if i < len(lines):
-                # 將每行的數字分割並轉換為整數，然後儲存到 points 陣列
-                point = list(map(int, lines[i].split()))
-                draw_point(canvas, point)
-                points = np.vstack((points, point))  # 將新的點添加到陣列中
+                try:
+                    # 將每行的數字分割並轉換為整數，然後儲存到 points 陣列
+                    point = list(map(int, lines[i].split()))
+                    draw_point(canvas, point)
+                    points = np.vstack((points, point))  # 將新的點添加到陣列中
+                except ValueError:
+                    print(f"Error: Line {i+1} does not contain valid integers.")
+                    continue
 
         points = np.unique(points, axis=0)
 
         # 保留未使用的內容
         file_content = "\n".join(lines[num_points + 1:])
-
-        print(points)
 
 def write_file(points,edges):
     # 彈出檔案保存對話框
@@ -224,54 +232,100 @@ def draw_output():
         except IOError:
             messagebox.showerror("錯誤", "讀取檔案時發生錯誤。")
             
-
 # 創建主視窗
 root = tk.Tk()
 root.title("Voronoi Diagram")
-root.geometry("800x600")  # 設定視窗大小為 800x600
+root.geometry("1100x650")  # 設定視窗大小為 900x600
 
 # 創建繪布
-canvas = tk.Canvas(root, width=600, height=600, bg="white")
-canvas.pack(side=tk.LEFT)
+canvas = tk.Canvas(root, width=600, height=600, bg="white", bd=2, relief="sunken")
+canvas.pack(side=tk.LEFT, padx=10, pady=10)
+
+# 每個按鈕都設置相同的寬度
+button_width = 15
 
 # 綁定滑鼠點擊事件來記錄點的位置
 canvas.bind("<Button-1>", record_point)
 
-# 右側顯示滑鼠位置和按鈕
+# 右側控制面板
 control_frame = tk.Frame(root)
 control_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=10)
 
-# 點位置顯示標籤
-position_label = tk.Label(control_frame, text="記錄點位置: (無)", font=("Arial", 12))
-position_label.grid(row=0, column=0, pady=5)
+# 設置 control_frame 的列權重和行權重，使其保持居中
+control_frame.grid_columnconfigure(0, weight=1)
+control_frame.grid_columnconfigure(1, weight=1)
+control_frame.grid_rowconfigure(0, weight=1)
+control_frame.grid_rowconfigure(1, weight=1)
+control_frame.grid_rowconfigure(2, weight=1)
 
-# 新增點按鈕
-add_button = tk.Button(control_frame, text="新增點", command=add_point)
-add_button.grid(row=1, column=0, pady=5)
+# 左側控制區域
+add_point_frame = tk.LabelFrame(control_frame, text="添加點", padx=30, pady=10)
+add_point_frame.grid(row=0, column=0, rowspan=2, sticky="ns", padx=5, pady=10)
 
-# 清空繪布按鈕
-clear_button = tk.Button(control_frame, text="清空繪布", command=clear_canvas)
-clear_button.grid(row=2, column=0, pady=5)
+position_label = tk.Label(add_point_frame, text="滑鼠位置 (-24, 359)")
+position_label.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
 
-# 畫圖按鈕
-draw_button = tk.Button(control_frame, text="畫圖", command=draw_voronoi)
-draw_button.grid(row=3, column=0, pady=5)
+x_label = tk.Label(add_point_frame, text="X")
+x_label.grid(row=1, column=0, sticky="e", padx=5)
+y_label = tk.Label(add_point_frame, text="Y")
+y_label.grid(row=2, column=0, sticky="e", padx=5)
 
-# 輸入檔案按鈕
-readfile_button = tk.Button(control_frame, text="輸入檔案", command=read_file)
-readfile_button.grid(row=4, column=0, pady=5)
+x_entry = tk.Entry(add_point_frame, width=15)
+x_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+y_entry = tk.Entry(add_point_frame, width=15)
+y_entry.grid(row=2, column=1, padx=5, pady=5, sticky="w")
 
-# 輸出檔案按鈕
-writefile_button = tk.Button(control_frame, text="輸出檔案", command=lambda: write_file(points, edges))
-writefile_button.grid(row=5, column=0, pady=5)
+add_button = tk.Button(add_point_frame, text="添加點", command=add_point, width=15)
+add_button.grid(row=3, column=0, columnspan=2, pady=5, sticky="ew")
 
-# 畫輸入點按鈕
-drawinput_button = tk.Button(control_frame, text="畫輸入點", command=draw_input)
-drawinput_button.grid(row=6, column=0, pady=5)
 
-# 讀取輸出按鈕
-drawoutput_button = tk.Button(control_frame, text="讀取輸出", command=draw_output)
-drawoutput_button.grid(row=7, column=0, pady=5)
+# 右側「執行」區域
+execute_frame = tk.LabelFrame(control_frame, text="執行", padx=40, pady=10)
+execute_frame.grid(row=0, column=1, sticky="ns", padx=5, pady=10)
+
+draw_button = tk.Button(execute_frame, text="畫圖", command=draw_voronoi, width=15)
+draw_button.grid(row=1, column=0, pady=5, sticky="ew")
+
+next_button = tk.Button(execute_frame, text="下一組資料", command=draw_input, width=15)
+next_button.grid(row=2, column=0, pady=5, sticky="ew")
+
+step_button = tk.Button(execute_frame, text="一步一步執行", command=lambda: print("一步一步執行"), width=15)
+step_button.grid(row=3, column=0, pady=5, sticky="ew")
+
+clear_button = tk.Button(execute_frame, text="清空畫布", command=clear_canvas, width=15)
+clear_button.grid(row=4, column=0, pady=5, sticky="ew")
+
+
+# 右側「檔案」區域
+file_frame = tk.LabelFrame(control_frame, text="檔案", padx=40, pady=10)
+file_frame.grid(row=1, column=1, sticky="ns", padx=5, pady=10)
+
+read_input_button = tk.Button(file_frame, text="讀取輸入檔", command=read_file, width=15)
+read_input_button.grid(row=0, column=0, pady=5, sticky="ew")
+
+read_output_button = tk.Button(file_frame, text="讀取輸出檔", command=draw_output, width=15)
+read_output_button.grid(row=1, column=0, pady=5, sticky="ew")
+
+save_text_button = tk.Button(file_frame, text="輸出文字檔", command=lambda: write_file(points, edges), width=15)
+save_text_button.grid(row=2, column=0, pady=5, sticky="ew")
+
+
+# 點資料顯示區域
+points_frame = tk.LabelFrame(control_frame, text="點資料", padx=10, pady=10)
+points_frame.grid(row=2, column=0, sticky="nsew", padx=5, pady=10)
+
+# 調整 Listbox 的 height 和 width
+points_list = tk.Listbox(points_frame, height=12, width=25)  # 調整寬度
+points_list.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+
+# 邊資料顯示區域
+edges_frame = tk.LabelFrame(control_frame, text="邊資料", padx=10, pady=10)
+edges_frame.grid(row=2, column=1, sticky="nsew", padx=5, pady=10)
+
+# 調整 Listbox 的 height 和 width
+edges_list = tk.Listbox(edges_frame, height=12, width=25)  # 調整寬度
+edges_list.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+
 
 # 啟動主循環
 root.mainloop()
