@@ -1,22 +1,64 @@
+import tkinter as tk
+from tkinter import messagebox
 import numpy as np
 
-# 假設 edges 的結構
-edges = [(np.array([-25935. ,  11730.5]), np.array([ 26265. , -11069.5]))]
+# 創建主視窗
+root = tk.Tk()
+root.title("添加點示例")
+root.geometry("400x300")
 
-# 遍歷 edges
-for edge in edges:
-    point1, point2 = edge  # 解包元組中的兩個點
-    
-    # 使用 point1 和 point2
-    print("Point 1:", point1)
-    print("Point 2:", point2)
+# 全域變數
+points = np.empty((0, 2), int)  # 用於存儲點的座標
 
-    print(point1[0])
-    
-    # 例如，計算這兩個點的距離
-    distance = np.linalg.norm(point2 - point1)
-    print("Distance between points:", distance)
+# 點資料顯示區域
+points_frame = tk.LabelFrame(root, text="點資料")
+points_frame.pack(padx=10, pady=10, fill="both")
 
-    # 或者，可以畫出這些點
-    # 如果你有一個 canvas 繪圖函數，像這樣：
-    # draw_line(canvas, point1, point2)
+points_list = tk.Listbox(points_frame, height=8)
+points_list.pack(fill="both", padx=5, pady=5)
+
+# 更新點列表的函數
+def update_points_list():
+    points_list.delete(0, tk.END)
+    for point in points:
+        points_list.insert(tk.END, f"({int(point[0])}, {int(point[1])})")
+
+# 畫布區域
+canvas = tk.Canvas(root, width=200, height=200, bg="white")
+canvas.pack(padx=10, pady=10)
+
+# 添加點的函數
+def add_point():
+    global points
+    try:
+        x = int(x_entry.get())
+        y = int(y_entry.get())
+        
+        # 新增點到 points 陣列
+        new_point = np.array([[x, y]])
+        points = np.vstack((points, new_point))
+        
+        # 在畫布上繪製點
+        canvas.create_oval(x-3, y-3, x+3, y+3, fill="blue")
+        
+        # 更新點資料列表
+        update_points_list()
+    except ValueError:
+        messagebox.showerror("輸入錯誤", "請輸入有效的整數 X 和 Y 座標")
+
+# 輸入區域
+input_frame = tk.Frame(root)
+input_frame.pack(padx=10, pady=10)
+
+tk.Label(input_frame, text="X:").grid(row=0, column=0)
+x_entry = tk.Entry(input_frame, width=5)
+x_entry.grid(row=0, column=1, padx=5)
+
+tk.Label(input_frame, text="Y:").grid(row=0, column=2)
+y_entry = tk.Entry(input_frame, width=5)
+y_entry.grid(row=0, column=3, padx=5)
+
+add_button = tk.Button(input_frame, text="添加點", command=add_point)
+add_button.grid(row=0, column=4, padx=10)
+
+root.mainloop()
